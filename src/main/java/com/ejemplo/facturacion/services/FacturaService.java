@@ -1,5 +1,7 @@
 package com.ejemplo.facturacion.services;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -7,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -53,10 +56,42 @@ public class FacturaService {
     }
 
     public Optional<Factura> obtenerFacturaAsincrona(final String idFactura) {
-        return Optional.empty();
+        return facturas.get(idFactura);
     }
 
-    public void crearFacturaAsincrona(final String idFactura, final Orden orden) throws InterruptedException {
+    public Factura generarFactura(final String idFactura, final Orden orden) throws InterruptedException {
+        Factura factura = new Factura();
+
+        String id = idFactura;
+        facturas.put(id, Optional.empty());
+
+        Thread.sleep(20000);
+
+        BigDecimal subtotal = calcularSubtotal(orden.getArticulos());
+        BigDecimal iva = subtotal.multiply(BigDecimal.valueOf(0.16)).setScale(2, RoundingMode.UP);
+        BigDecimal total = subtotal.add(iva);
+
+        factura.setId(id);
+        factura.setArticulos(orden.getArticulos());
+        factura.setSubtotal(subtotal);
+        factura.setIva(iva);
+        factura.setTotal(total);
+
+        facturas.put(factura.getId(), Optional.of(factura));
+
+        return factura;
+    }
+
+    @Async 
+    public CompletableFuture<Void> crearFacturaAsincrona(final String idFactura, final Orden orden) throws InterruptedException {
+        return CompletableFuture.runAsync(() -> {
+            try{
+                generarFactura(idFactura, orden);
+            }
+            catch(InterruptedException e){
+                throw new RuntimeException("Operation interrupted", e);
+            }
+        });
     }
 
     private BigDecimal calcularSubtotal(List<Articulo> articulos) {
