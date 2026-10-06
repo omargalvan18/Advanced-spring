@@ -31,12 +31,11 @@ public class FacturacionV2Controller {
     @Autowired FacturaService facturaService;
 
     @PostMapping("/v2/factura")
-    public ResponseEntity<Map<String, String>> calcularFactura(@RequestBody Orden orden) {
+    public ResponseEntity<String> calcularFactura(@RequestBody Orden orden) {
         try{
             String id = facturaService.iniciarFacturaAsincrona(orden);
             facturaService.crearFacturaAsincrona(id, orden);
-            Map<String, String> body = Map.of("idFactura", id, "status", "EN_PROCESO");
-            return ResponseEntity.accepted().body(body);
+            return ResponseEntity.accepted().body(id);
         }
         catch(InterruptedException e){
             throw new RuntimeException("Error: ",e);
